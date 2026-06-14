@@ -1,38 +1,40 @@
-import pandas as pd
+import argparse
+import csv
 import json
+from datetime import datetime
+from pathlib import Path
 
-# Excel 파일 읽기 (처음 2행은 헤더 정보이므로 건너뜀)
-df = pd.read_excel('rate.xls', skiprows=2)
+parser = argparse.ArgumentParser(description='금융채 금리 차트 HTML 생성')
+parser.add_argument('--data', default='rate.csv', help='읽을 CSV 데이터 파일')
+parser.add_argument('--no-open', action='store_true', help='chart.html 생성 후 브라우저를 열지 않음')
+args = parser.parse_args()
 
-# 컬럼명 변경
-df.columns = ['일자', '6월', '5년']
+data_path = Path(args.data)
 
-# 날짜 형식 변환
-df['일자'] = pd.to_datetime(df['일자'], format='%Y/%m/%d')
+rows = []
+with data_path.open('r', encoding='utf-8-sig', newline='') as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        try:
+            day = datetime.strptime(row['일자'], '%Y/%m/%d')
+            rate_6m = float(row['6월'])
+            rate_5y = float(row['5년'])
+        except (KeyError, TypeError, ValueError):
+            continue
+        rows.append((day, rate_6m, rate_5y))
 
-# 금리를 숫자로 변환
-df['6월'] = pd.to_numeric(df['6월'], errors='coerce')
-df['5년'] = pd.to_numeric(df['5년'], errors='coerce')
+rows.sort(key=lambda item: item[0])
+if len(rows) < 2:
+    raise RuntimeError(f'{data_path}에 차트를 만들 데이터가 부족합니다.')
 
-# 결측치 제거
-df = df.dropna()
-
-# 날짜 기준 오름차순 정렬
-df = df.sort_values('일자')
-
-# lightweight-charts용 데이터 포맷
-data_6m = []
-data_5y = []
-for _, row in df.iterrows():
-    date_str = row['일자'].strftime('%Y-%m-%d')
-    data_6m.append({
-        'time': date_str,
-        'value': float(row['6월'])
-    })
-    data_5y.append({
-        'time': date_str,
-        'value': float(row['5년'])
-    })
+data_6m = [
+    {'time': day.strftime('%Y-%m-%d'), 'value': rate_6m}
+    for day, rate_6m, _ in rows
+]
+data_5y = [
+    {'time': day.strftime('%Y-%m-%d'), 'value': rate_5y}
+    for day, _, rate_5y in rows
+]
 
 # 최신/전일 데이터
 last_6m = data_6m[-1]['value']
@@ -249,5 +251,6 @@ with open('chart.html', 'w', encoding='utf-8') as f:
 print('차트가 chart.html로 저장되었습니다.')
 
 # 브라우저에서 열기
-import webbrowser
-webbrowser.open('chart.html')
+if not args.no_open:
+    import webbrowser
+    webbrowser.open('chart.html')
