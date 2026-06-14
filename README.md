@@ -52,3 +52,11 @@ python3 plot_chart.py
 ```bash
 python3 update_rates.py --dry-run
 ```
+
+## GitHub Pages
+
+GitHub에서 `Settings` -> `Pages` -> `Source`를 `GitHub Actions`로 설정한다.
+
+배포 후 차트는 아래 주소에서 볼 수 있다.
+
+[https://acktsap.github.io/interest-rate/](https://acktsap.github.io/interest-rate/)
