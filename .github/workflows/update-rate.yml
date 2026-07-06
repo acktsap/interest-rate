@@ -40,9 +40,11 @@ jobs:
         run: python3 plot_chart.py --no-open
 
       - name: Commit changes
+        id: changes
         run: |
           if git diff --quiet -- rate.csv chart.html; then
             echo "No rate updates."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -51,8 +53,10 @@ jobs:
           git add rate.csv chart.html
           git commit -m "Update rate data"
           git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Prepare Pages artifact
+        if: steps.changes.outputs.changed == 'true'
         run: |
           mkdir -p site
           cp chart.html site/index.html
@@ -60,10 +64,12 @@ jobs:
           cp rate.csv site/rate.csv
 
       - name: Upload Pages artifact
+        if: steps.changes.outputs.changed == 'true'
         uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
       - name: Deploy to GitHub Pages
+        if: steps.changes.outputs.changed == 'true'
         id: deployment
         uses: actions/deploy-pages@v5
