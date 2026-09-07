@@ -412,9 +412,9 @@ html_template = f'''<!DOCTYPE html>
     </div>
 
     <script>
-        const seriesDefinitions = {json.dumps(SERIES_DEFINITIONS)};
-        const seriesDataMap = {json.dumps(series_data_map)};
-        const seriesInfoMap = {json.dumps(series_info_map)};
+        const seriesDefinitions = {json.dumps(SERIES_DEFINITIONS, indent=2, ensure_ascii=False)};
+        const seriesDataMap = {json.dumps(series_data_map, indent=2, ensure_ascii=False)};
+        const seriesInfoMap = {json.dumps(series_info_map, indent=2, ensure_ascii=False)};
 
         const STORAGE_KEY = 'interest_rate_checklist_v3';
 
