@@ -91,6 +91,7 @@ html_template = f'''<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>한국 국채 & 금융채 금리 차트</title>
     <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="rates.js"></script>
     <style>
         * {{
             box-sizing: border-box;
@@ -412,9 +413,9 @@ html_template = f'''<!DOCTYPE html>
     </div>
 
     <script>
-        const seriesDefinitions = {json.dumps(SERIES_DEFINITIONS, indent=2, ensure_ascii=False)};
-        const seriesDataMap = {json.dumps(series_data_map, indent=2, ensure_ascii=False)};
-        const seriesInfoMap = {json.dumps(series_info_map, indent=2, ensure_ascii=False)};
+        const seriesDefinitions = window.SERIES_DEFINITIONS || [];
+        const seriesDataMap = window.SERIES_DATA_MAP || {{}};
+        const seriesInfoMap = window.SERIES_INFO_MAP || {{}};
 
         const STORAGE_KEY = 'interest_rate_checklist_v3';
 
@@ -680,6 +681,17 @@ html_template = f'''<!DOCTYPE html>
     </script>
 </body>
 </html>'''
+
+# rates.js 파일 저장
+rates_js_content = f"""window.SERIES_DEFINITIONS = {json.dumps(SERIES_DEFINITIONS, indent=2, ensure_ascii=False)};
+window.SERIES_DATA_MAP = {json.dumps(series_data_map, indent=2, ensure_ascii=False)};
+window.SERIES_INFO_MAP = {json.dumps(series_info_map, indent=2, ensure_ascii=False)};
+"""
+
+with open('rates.js', 'w', encoding='utf-8') as f:
+    f.write(rates_js_content)
+
+print('데이터가 rates.js로 저장되었습니다.')
 
 # HTML 파일 저장
 with open('chart.html', 'w', encoding='utf-8') as f:
