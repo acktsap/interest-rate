@@ -12,12 +12,13 @@ args = parser.parse_args()
 data_path = Path(args.data)
 
 SERIES_DEFINITIONS = [
-    {'key': 'bank_6m', 'label': '금융채 6월', 'cols': ['금융채 6월', '6월'], 'color': '#2962FF', 'group': '금융채', 'default_on': True},
-    {'key': 'bank_5y', 'label': '금융채 5년', 'cols': ['금융채 5년', '5년'], 'color': '#FF6D00', 'group': '금융채', 'default_on': True},
-    {'key': 'gov_1y',  'label': '국채 1년',   'cols': ['국채 1년'],           'color': '#00E676', 'group': '국채',   'default_on': False},
-    {'key': 'gov_3y',  'label': '국채 3년',   'cols': ['국채 3년'],           'color': '#E040FB', 'group': '국채',   'default_on': True},
-    {'key': 'gov_5y',  'label': '국채 5년',   'cols': ['국채 5년'],           'color': '#00E5FF', 'group': '국채',   'default_on': False},
-    {'key': 'gov_10y', 'label': '국채 10년',  'cols': ['국채 10년'],          'color': '#FFD600', 'group': '국채',   'default_on': True},
+    {'key': 'base_rate', 'label': '기준금리 (한은)', 'cols': ['기준금리'],           'color': '#FFFFFF', 'group': '기준금리', 'default_on': True, 'lineWidth': 3},
+    {'key': 'bank_6m',  'label': '금융채 6월',    'cols': ['금융채 6월', '6월'], 'color': '#2962FF', 'group': '금융채',   'default_on': True},
+    {'key': 'bank_5y',  'label': '금융채 5년',    'cols': ['금융채 5년', '5년'], 'color': '#FF6D00', 'group': '금융채',   'default_on': True},
+    {'key': 'gov_1y',   'label': '국채 1년',     'cols': ['국채 1년'],           'color': '#00E676', 'group': '국채',     'default_on': False},
+    {'key': 'gov_3y',   'label': '국채 3년',     'cols': ['국채 3년'],           'color': '#E040FB', 'group': '국채',     'default_on': True},
+    {'key': 'gov_5y',   'label': '국채 5년',     'cols': ['국채 5년'],           'color': '#00E5FF', 'group': '국채',     'default_on': False},
+    {'key': 'gov_10y',  'label': '국채 10년',    'cols': ['국채 10년'],          'color': '#FFD600', 'group': '국채',     'default_on': True},
 ]
 
 rows = []
@@ -371,14 +372,14 @@ html_template = f'''<!DOCTYPE html>
     <div id="header">
         <div class="brand-section">
             <div id="title">금리 차트</div>
-            <span class="badge">국채 & 금융채 AAA</span>
+            <span class="badge">기준금리 & 국채 & 금융채 AAA</span>
         </div>
         
         <div class="dropdown-wrapper" id="dropdown-wrapper">
             <button class="dropdown-btn" id="dropdown-btn">
                 <span>📊</span>
                 <span>금리 항목 선택</span>
-                <span class="count-badge" id="selected-count-badge">4/6</span>
+                <span class="count-badge" id="selected-count-badge">5/7</span>
                 <span class="caret-icon">▾</span>
             </button>
             
@@ -392,7 +393,10 @@ html_template = f'''<!DOCTYPE html>
                     </div>
                 </div>
                 <div class="dropdown-body">
-                    <div class="group-title">🏦 금융채 AAA</div>
+                    <div class="group-title">🏛️ 한국은행 기준금리</div>
+                    <div class="group-items" id="group-base"></div>
+
+                    <div class="group-title" style="margin-top: 8px;">🏦 금융채 AAA</div>
                     <div class="group-items" id="group-bank"></div>
                     
                     <div class="group-title" style="margin-top: 8px;">🇰🇷 한국 국채</div>
@@ -412,7 +416,7 @@ html_template = f'''<!DOCTYPE html>
         const seriesDataMap = {json.dumps(series_data_map)};
         const seriesInfoMap = {json.dumps(series_info_map)};
 
-        const STORAGE_KEY = 'interest_rate_checklist_v2';
+        const STORAGE_KEY = 'interest_rate_checklist_v3';
 
         function loadChecklistState() {{
             try {{
@@ -491,7 +495,7 @@ html_template = f'''<!DOCTYPE html>
             const isVisible = currentVisibilityState[s.key] !== false;
             const series = chart.addSeries(LightweightCharts.LineSeries, {{
                 color: s.color,
-                lineWidth: 2,
+                lineWidth: s.lineWidth || 2,
                 title: s.label,
                 visible: isVisible,
                 priceFormat: {{
@@ -505,6 +509,7 @@ html_template = f'''<!DOCTYPE html>
         }});
 
         // Build Dropdown Items
+        const groupBaseContainer = document.getElementById('group-base');
         const groupBankContainer = document.getElementById('group-bank');
         const groupGovContainer = document.getElementById('group-gov');
 
@@ -567,7 +572,9 @@ html_template = f'''<!DOCTYPE html>
             item.appendChild(left);
             item.appendChild(right);
 
-            if (s.group === '금융채') {{
+            if (s.group === '기준금리') {{
+                groupBaseContainer.appendChild(item);
+            }} else if (s.group === '금융채') {{
                 groupBankContainer.appendChild(item);
             }} else {{
                 groupGovContainer.appendChild(item);

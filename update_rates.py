@@ -23,6 +23,7 @@ except ImportError:  # pragma: no cover - Python 3.9+ has zoneinfo.
 
 
 KOFIA_XMLSERVICES_URL = "https://www.kofiabond.or.kr/proframeWeb/XMLSERVICES/"
+BOK_BASE_RATE_URL = "https://www.bok.or.kr/portal/singl/baseRate/list.do?dataSeCd=01&menuNo=200643"
 
 BOND_TYPE_BANK_AAA = "5030110"  # 금융채 I(은행채) / 무보증 / AAA
 BOND_TYPE_TREASURY = "1010000"  # 국고채
@@ -33,6 +34,7 @@ ORG_KAP = "A10003"
 
 CSV_COLUMNS = (
     "일자",
+    "기준금리",
     "금융채 6월",
     "금융채 5년",
     "국채 1년",
@@ -58,6 +60,7 @@ GROUP_TREASURY = [
 @dataclass(frozen=True)
 class RateRow:
     day: date
+    base_rate: str = ""
     bank_6m: str = ""
     bank_5y: str = ""
     gov_1y: str = ""
@@ -67,7 +70,8 @@ class RateRow:
 
     def is_complete(self) -> bool:
         return bool(
-            self.bank_6m
+            self.base_rate
+            and self.bank_6m
             and self.bank_5y
             and self.gov_1y
             and self.gov_3y
@@ -78,6 +82,7 @@ class RateRow:
     def to_csv_row(self) -> dict[str, str]:
         return {
             "일자": self.day.strftime("%Y/%m/%d"),
+            "기준금리": self.base_rate,
             "금융채 6월": self.bank_6m,
             "금융채 5년": self.bank_5y,
             "국채 1년": self.gov_1y,
@@ -151,13 +156,56 @@ def load_existing_rows(csv_path: Path) -> list[RateRow]:
     return []
 
 
+def fetch_bok_base_rate_history() -> list[tuple[date, float]]:
+    request = urllib.request.Request(
+        BOK_BASE_RATE_URL,
+        headers={"User-Agent": "Mozilla/5.0"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            html = response.read().decode("utf-8", errors="replace")
+    except Exception:
+        return []
+
+    matches = re.findall(r"<tr.*?>\s*<td.*?>(.*?)</td>\s*<td.*?>(.*?)</td>\s*<td.*?>(.*?)</td>", html, re.DOTALL)
+    changes = []
+    for m in matches:
+        clean_m = [re.sub(r"<.*?>", "", x).strip() for x in m]
+        year_str, day_str, rate_str = clean_m[0], clean_m[1], clean_m[2]
+        m_match = re.search(r"(\d+)월\s*(\d+)일", day_str)
+        if year_str.isdigit() and m_match:
+            y = int(year_str)
+            month = int(m_match.group(1))
+            d = int(m_match.group(2))
+            try:
+                r_val = float(rate_str)
+                changes.append((date(y, month, d), r_val))
+            except ValueError:
+                pass
+
+    changes.sort(key=lambda x: x[0])
+    return changes
+
+
+def get_base_rate_for_day(target_day: date, changes: list[tuple[date, float]]) -> str:
+    active_rate = None
+    for c_day, r in changes:
+        if c_day <= target_day:
+            active_rate = r
+        else:
+            break
+    if active_rate is not None:
+        return f"{active_rate:.3f}"
+    return ""
+
+
 def load_csv_rows(path: Path) -> list[RateRow]:
     rows: list[RateRow] = []
     with path.open("r", encoding="utf-8-sig", newline="") as csv_file:
         reader = csv.DictReader(csv_file)
         for row in reader:
             try:
-                # Support legacy column names '6월' and '5년' alongside new '금융채 6월' and '금융채 5년'
+                base_rate = normalize_rate(row.get("기준금리") or "")
                 bank_6m = normalize_rate(row.get("금융채 6월") or row.get("6월") or "")
                 bank_5y = normalize_rate(row.get("금융채 5년") or row.get("5년") or "")
                 gov_1y = normalize_rate(row.get("국채 1년") or "")
@@ -168,6 +216,7 @@ def load_csv_rows(path: Path) -> list[RateRow]:
                 rows.append(
                     RateRow(
                         day=parse_day(row["일자"]),
+                        base_rate=base_rate,
                         bank_6m=bank_6m,
                         bank_5y=bank_5y,
                         gov_1y=gov_1y,
@@ -180,6 +229,7 @@ def load_csv_rows(path: Path) -> list[RateRow]:
                 raise ValueError(f"invalid row in {path}: {row}") from exc
 
     return rows
+
 
 
 def write_csv_rows(path: Path, rows: Iterable[RateRow]) -> None:
@@ -486,17 +536,17 @@ def main() -> int:
     rows = load_existing_rows(csv_path)
     rows_by_day = {row.day: row for row in rows}
 
+    bok_changes = fetch_bok_base_rate_history()
+
     current_latest = latest_day(rows)
     start_day = parse_day(args.start_date) if args.start_date else None
     end_day = parse_day(args.end_date) if args.end_date else today_kst()
 
     if start_day is None:
         if args.backfill:
-            # Backfill earliest available date in rate.csv (or 2000-10-30)
             earliest_in_csv = min(r.day for r in rows) if rows else date(2000, 10, 30)
             start_day = earliest_in_csv
         elif current_latest:
-            # Check if current_latest row is incomplete
             latest_row = rows_by_day.get(current_latest)
             if latest_row and not latest_row.is_complete():
                 start_day = current_latest
@@ -505,56 +555,63 @@ def main() -> int:
         else:
             start_day = date(2023, 1, 9)
 
-    if start_day > end_day:
-        if current_latest:
-            print(f"Already up to date. Latest local date: {current_latest:%Y-%m-%d}")
-        else:
-            print(f"Nothing to fetch. Start date {start_day:%Y-%m-%d} is after end date {end_day:%Y-%m-%d}.")
-        return 0
+    if start_day <= end_day:
+        print(f"Latest local date: {current_latest:%Y-%m-%d}" if current_latest else "No local rows.")
+        print(f"Fetching KOFIA rates from {start_day:%Y-%m-%d} to {end_day:%Y-%m-%d}.")
 
-    print(f"Latest local date: {current_latest:%Y-%m-%d}" if current_latest else "No local rows.")
-    print(f"Fetching KOFIA rates from {start_day:%Y-%m-%d} to {end_day:%Y-%m-%d}.")
+        fetched_data = fetch_all_rates_in_range(start_day, end_day)
 
-    fetched_data = fetch_all_rates_in_range(start_day, end_day)
+        for d, rates in fetched_data.items():
+            base_r = get_base_rate_for_day(d, bok_changes)
+            if d in rows_by_day:
+                existing = rows_by_day[d]
+                rows_by_day[d] = RateRow(
+                    day=d,
+                    base_rate=base_r or existing.base_rate,
+                    bank_6m=rates.get("bank_6m") or existing.bank_6m,
+                    bank_5y=rates.get("bank_5y") or existing.bank_5y,
+                    gov_1y=rates.get("gov_1y") or existing.gov_1y,
+                    gov_3y=rates.get("gov_3y") or existing.gov_3y,
+                    gov_5y=rates.get("gov_5y") or existing.gov_5y,
+                    gov_10y=rates.get("gov_10y") or existing.gov_10y,
+                )
+            else:
+                rows_by_day[d] = RateRow(
+                    day=d,
+                    base_rate=base_r,
+                    bank_6m=rates.get("bank_6m", ""),
+                    bank_5y=rates.get("bank_5y", ""),
+                    gov_1y=rates.get("gov_1y", ""),
+                    gov_3y=rates.get("gov_3y", ""),
+                    gov_5y=rates.get("gov_5y", ""),
+                    gov_10y=rates.get("gov_10y", ""),
+                )
 
-    updated_count = 0
-    added_count = 0
-
-    for d, rates in fetched_data.items():
-        if d in rows_by_day:
-            existing = rows_by_day[d]
-            new_row = RateRow(
-                day=d,
-                bank_6m=rates.get("bank_6m") or existing.bank_6m,
-                bank_5y=rates.get("bank_5y") or existing.bank_5y,
-                gov_1y=rates.get("gov_1y") or existing.gov_1y,
-                gov_3y=rates.get("gov_3y") or existing.gov_3y,
-                gov_5y=rates.get("gov_5y") or existing.gov_5y,
-                gov_10y=rates.get("gov_10y") or existing.gov_10y,
-            )
-            if new_row != existing:
-                rows_by_day[d] = new_row
-                updated_count += 1
-        else:
-            rows_by_day[d] = RateRow(
-                day=d,
-                bank_6m=rates.get("bank_6m", ""),
-                bank_5y=rates.get("bank_5y", ""),
-                gov_1y=rates.get("gov_1y", ""),
-                gov_3y=rates.get("gov_3y", ""),
-                gov_5y=rates.get("gov_5y", ""),
-                gov_10y=rates.get("gov_10y", ""),
-            )
-            added_count += 1
+    # Ensure all existing rows also have base_rate populated
+    if bok_changes:
+        for d, r in list(rows_by_day.items()):
+            base_r = get_base_rate_for_day(d, bok_changes)
+            if base_r and r.base_rate != base_r:
+                rows_by_day[d] = RateRow(
+                    day=d,
+                    base_rate=base_r,
+                    bank_6m=r.bank_6m,
+                    bank_5y=r.bank_5y,
+                    gov_1y=r.gov_1y,
+                    gov_3y=r.gov_3y,
+                    gov_5y=r.gov_5y,
+                    gov_10y=r.gov_10y,
+                )
 
     if args.dry_run:
-        print(f"Dry run: {added_count} new rows would be added, {updated_count} rows would be updated.")
+        print(f"Dry run completed. Total rows: {len(rows_by_day)}")
         return 0
 
     write_csv_rows(csv_path, rows_by_day.values())
 
-    print(f"Wrote {csv_path} with {len(rows_by_day)} rows ({added_count} added, {updated_count} updated).")
+    print(f"Wrote {csv_path} with {len(rows_by_day)} rows.")
     return 0
+
 
 
 
