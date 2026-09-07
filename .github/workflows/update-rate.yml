@@ -42,7 +42,7 @@ jobs:
       - name: Commit changes
         id: changes
         run: |
-          if git diff --quiet -- rate.csv chart.html; then
+          if git diff --quiet -- rate.csv chart.html rates.js; then
             echo "No rate updates."
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -50,7 +50,7 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rate.csv chart.html
+          git add rate.csv chart.html rates.js
           git commit -m "Update rate data"
           git push
           echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -61,6 +61,7 @@ jobs:
           mkdir -p site
           cp chart.html site/index.html
           cp chart.html site/chart.html
+          cp rates.js site/rates.js
           cp rate.csv site/rate.csv
 
       - name: Upload Pages artifact
