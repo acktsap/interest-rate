@@ -27194,6 +27194,10 @@ window.SERIES_DATA_MAP = {
     {
       "time": "2026-10-20",
       "value": 3.0
+    },
+    {
+      "time": "2026-10-21",
+      "value": 3.0
     }
   ],
   "bank_6m": [
@@ -53120,6 +53124,10 @@ window.SERIES_DATA_MAP = {
     {
       "time": "2026-10-20",
       "value": 3.784
+    },
+    {
+      "time": "2026-10-21",
+      "value": 3.789
     }
   ],
   "bank_5y": [
@@ -79046,6 +79054,10 @@ window.SERIES_DATA_MAP = {
     {
       "time": "2026-10-20",
       "value": 4.316
+    },
+    {
+      "time": "2026-10-21",
+      "value": 4.291
     }
   ],
   "gov_1y": [
@@ -105076,6 +105088,10 @@ window.SERIES_DATA_MAP = {
     {
       "time": "2026-10-20",
       "value": 3.605
+    },
+    {
+      "time": "2026-10-21",
+      "value": 3.595
     }
   ],
   "gov_3y": [
@@ -130954,6 +130970,10 @@ window.SERIES_DATA_MAP = {
     {
       "time": "2026-10-20",
       "value": 3.835
+    },
+    {
+      "time": "2026-10-21",
+      "value": 3.812
     }
   ],
   "gov_5y": [
@@ -145300,6 +145320,10 @@ window.SERIES_DATA_MAP = {
     {
       "time": "2026-10-20",
       "value": 3.985
+    },
+    {
+      "time": "2026-10-21",
+      "value": 3.96
     }
   ],
   "gov_10y": [
@@ -171226,6 +171250,10 @@ window.SERIES_DATA_MAP = {
     {
       "time": "2026-10-20",
       "value": 4.175
+    },
+    {
+      "time": "2026-10-21",
+      "value": 4.15
     }
   ]
 };
@@ -171243,47 +171271,47 @@ window.SERIES_INFO_MAP = {
     "label": "금융채 6월",
     "color": "#2962FF",
     "group": "금융채",
-    "last": 3.784,
-    "change": 0.009999999999999787
+    "last": 3.789,
+    "change": 0.0050000000000003375
   },
   "bank_5y": {
     "key": "bank_5y",
     "label": "금융채 5년",
     "color": "#FF6D00",
     "group": "금융채",
-    "last": 4.316,
-    "change": -0.03000000000000025
+    "last": 4.291,
+    "change": -0.024999999999999467
   },
   "gov_1y": {
     "key": "gov_1y",
     "label": "국채 1년",
     "color": "#00E676",
     "group": "국채",
-    "last": 3.605,
-    "change": -0.020000000000000018
+    "last": 3.595,
+    "change": -0.009999999999999787
   },
   "gov_3y": {
     "key": "gov_3y",
     "label": "국채 3년",
     "color": "#E040FB",
     "group": "국채",
-    "last": 3.835,
-    "change": -0.041999999999999815
+    "last": 3.812,
+    "change": -0.02300000000000013
   },
   "gov_5y": {
     "key": "gov_5y",
     "label": "국채 5년",
     "color": "#00E5FF",
     "group": "국채",
-    "last": 3.985,
-    "change": -0.029999999999999805
+    "last": 3.96,
+    "change": -0.02499999999999991
   },
   "gov_10y": {
     "key": "gov_10y",
     "label": "국채 10년",
     "color": "#FFD600",
     "group": "국채",
-    "last": 4.175,
-    "change": -0.03500000000000014
+    "last": 4.15,
+    "change": -0.024999999999999467
   }
 };
